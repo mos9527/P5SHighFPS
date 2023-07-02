@@ -126,14 +126,14 @@ inline uint64_t readLongLEAAddress(uint64_t memory) {
 }
 
 inline std::map<uint64_t, std::vector<uint8_t>> origMem;
-inline void writeRelCall(uint64_t address, uint64_t function) {
+inline void writeNearCall(uint64_t address, uint64_t function) {
 	int disp = function - (address + 5);
 	LOG("WRTIE ADDR 0x%llx FUNC 0x%llx DISP %d", address, function, disp);
 	WRITE_MEMORY(address, uint8_t, 0xE8);
 	WRITE_MEMORY((size_t)address + 1, int, disp);
 }
 
-inline void restoreRelCallWrites(uint64_t address) {	
+inline void restoreNearCall(uint64_t address) {	
 	if (origMem.count(address)) {
 		auto og = origMem[address].data();
 		DWORD oldProtect;
