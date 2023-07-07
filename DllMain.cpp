@@ -5,6 +5,7 @@
 #include <dxgi.h>
 
 #include "Helpers.h"
+#include "xinput.h"
 #pragma comment(lib, "detours.lib")
 #pragma region winmm.dll Spoofing
 #pragma comment(linker, "/EXPORT:CloseDriver=C:\\Windows\\System32\\winmm.CloseDriver")
@@ -403,6 +404,28 @@ void RestoreInject() {
 }
 #pragma endregion
 
+FUNCTION_PTR(WORD, WINAPI, XInputGetInputStateInGame, (void*)0x14188C6BA, DWORD wUserIndex, XINPUT_STATE* pState);
+namespace XInputHook {
+	XINPUT_STATE state{};
+	WORD pressed{};
+	WORD prevPressed{};
+	bool BeginFrame() {
+		if (XInputGetInputStateInGame(0, &state) == NO_ERROR) {
+			pressed = state.Gamepad.wButtons;
+			return true;
+		}
+		return false;
+	}
+	bool KeyDown(WORD key) {
+		return !((prevPressed & (key)) == (key)) && ((pressed & (key)) == (key));
+	}
+	bool KeyUp(WORD key) {
+		return ((prevPressed & (key)) == (key)) && !((pressed & (key)) == (key));
+	}
+	void EndFrame() {
+		prevPressed = pressed;
+	}
+}
 BOOL APIENTRY DllMain(HMODULE hModule,
 	DWORD  ul_reason_for_call,
 	LPVOID lpReserved
@@ -436,33 +459,22 @@ void D3DInit(IDXGIAdapter*, HMODULE, ID3D11Device**, ID3D11DeviceContext**) {
 	LOG("D3D Init");
 }
 
+int fpsOverrideIndex = 1;
+int fpsOverrideSettings[] = {30,60,90,120,144,165,240};
 void OnFrame(IDXGISwapChain* pSwapChain, UINT SyncInterval, UINT Flags) {
 #ifdef _DEBUG
 	printf("fps=%3d frametime=%.3f        \r", *fps, *frameTime * 1000);
 #endif
-	if (GetAsyncKeyState(VK_F1) & 1) {
-		RestoreInject();
-		*fps = 60;
-		*fpsCutscene = 60.0f;
+	XInputHook::BeginFrame();
+	if ((GetAsyncKeyState(VK_F1) & 1) || (XInputHook::KeyDown(XINPUT_GAMEPAD_START | XINPUT_GAMEPAD_BACK))) {
+		fpsOverrideIndex++;
+		fpsOverrideIndex %= sizeof(fpsOverrideSettings) / sizeof(int);
+		*fps = fpsOverrideSettings[fpsOverrideIndex];
+		*fpsCutscene = static_cast<float>(*fps);
+		if (fpsOverrideIndex <= 1)
+			RestoreInject();
+		else
+			Inject();
 	}
-	if (GetAsyncKeyState(VK_F2) & 1) {
-		Inject();
-		*fps = 120;
-		*fpsCutscene = 120.0f;
-	}
-	if (GetAsyncKeyState(VK_F3) & 1) {
-		Inject();
-		*fps = 144;
-		*fpsCutscene = 144.0f;
-	}
-	if (GetAsyncKeyState(VK_F4) & 1) {
-		Inject();
-		*fps = 165;
-		*fpsCutscene = 165.0f;
-	}
-	if (GetAsyncKeyState(VK_F6) & 1) {
-		Inject();
-		*fps = 240;
-		*fpsCutscene = 240.0f;
-	}
+	XInputHook::EndFrame();
 };

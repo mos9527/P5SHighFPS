@@ -128,7 +128,7 @@ inline uint64_t readLongLEAAddress(uint64_t memory) {
 inline std::map<uint64_t, std::vector<uint8_t>> origMem;
 inline void writeNearCall(uint64_t address, uint64_t function) {
 	int disp = function - (address + 5);
-	LOG("WRTIE ADDR 0x%llx FUNC 0x%llx DISP %d", address, function, disp);
+	//LOG("WRTIE ADDR 0x%llx FUNC 0x%llx DISP %d", address, function, disp);
 	WRITE_MEMORY(address, uint8_t, 0xE8);
 	WRITE_MEMORY((size_t)address + 1, int, disp);
 }
@@ -140,13 +140,13 @@ inline void restoreNearCall(uint64_t address) {
 		VirtualProtect((void*)(address), 5, PAGE_EXECUTE_READWRITE, &oldProtect);
 		memcpy((void*)(address), og, 5);
 		VirtualProtect((void*)(address),5, oldProtect, &oldProtect);
-		LOG("RESTORE ADDR 0x%llx", address);
+		//LOG("RESTORE ADDR 0x%llx", address);
 	}
 	else {
 		auto& ogVec = origMem[address];
 		uint8_t og[5];
 		memcpy(og, (void*)address, 5);
 		ogVec.insert(ogVec.end(), og, og + 5);
-		LOG("BACKUP ADDR @0x%llx -> 0x%llx", address, ogVec.data());
+		//LOG("BACKUP ADDR @0x%llx -> 0x%llx", address, ogVec.data());
 	}
 }
